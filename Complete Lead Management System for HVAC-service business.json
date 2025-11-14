@@ -1,0 +1,890 @@
+{
+  "name": "Complete Lead Management System for HVAC-service business",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "b16ac4bb-5f9b-4675-956b-3350b456fe57",
+      "name": "Manual Trigger - Phone Leads",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "typeform-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c272aead-fbbb-4bfc-a9dc-ded4b179cfa4",
+      "name": "Typeform Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        400
+      ],
+      "webhookId": "typeform-lead-intake"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "7b06715a-1b75-4063-a686-9290365360f9",
+      "name": "Clay API Polling",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -288,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "id": "d8a4cd0e-3454-44b7-88ed-ed25680b328e",
+      "name": "Facebook Ads Polling",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -288,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://api.clay.com/v1/leads",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer 123456"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "c2412b7e-f014-42eb-ba27-134c9fe5480b",
+      "name": "Fetch Clay Leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -112,
+        592
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "HJvkWfgeaAJ5ZEsp",
+          "name": "Runway"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://graph.facebook.com/v18.0/YOUR_PAGE_ID/leadgen_forms",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "access_token",
+              "value": "123456"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "4f09a896-c0d5-43a2-be23-2486560096f6",
+      "name": "Fetch Facebook Leads",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -112,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const formData = item.json;\n  const normalized = {\n    source: 'Typeform - Website',\n    rawData: formData,\n    firstName: '',\n    lastName: '',\n    fullName: formData.name || formData.full_name || '',\n    phone: formData.phone || '',\n    email: formData.email || '',\n    serviceType: formData.service_type || formData.serviceType || '',\n    address: formData.address || '',\n    message: formData.message || '',\n    budget: formData.budget || 'Not mentioned',\n    urgency: formData.urgency || 'Not mentioned',\n    timestamp: new Date().toISOString()\n  };\n  if (normalized.fullName) {\n    const nameParts = normalized.fullName.trim().split(' ');\n    normalized.firstName = nameParts[0] || '';\n    normalized.lastName = nameParts.slice(1).join(' ') || '';\n  }\n  normalized.phone = normalized.phone.replace(/[^0-9+]/g, '');\n  items.push({ json: normalized });\n}\nreturn items;"
+      },
+      "id": "96c65e04-cf1d-4cd8-b863-26dba6e91a49",
+      "name": "Parse Typeform Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const leadData = item.json;\n  const normalized = {\n    source: 'Clay API',\n    rawData: leadData,\n    firstName: leadData.first_name || '',\n    lastName: leadData.last_name || '',\n    fullName: `${leadData.first_name || ''} ${leadData.last_name || ''}`.trim(),\n    phone: leadData.phone || leadData.phone_number || '',\n    email: leadData.email || '',\n    serviceType: leadData.service_type || leadData.interest || 'General Inquiry',\n    address: leadData.address || leadData.location || '',\n    message: leadData.message || leadData.notes || '',\n    budget: leadData.budget || 'Not mentioned',\n    urgency: leadData.urgency || 'Not mentioned',\n    timestamp: new Date().toISOString()\n  };\n  normalized.phone = normalized.phone.replace(/[^0-9+]/g, '');\n  items.push({ json: normalized });\n}\nreturn items;"
+      },
+      "id": "434e66ae-d7f2-438b-a697-1e511db9d008",
+      "name": "Parse Clay Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const fbData = item.json;\n  const normalized = {\n    source: 'Facebook Lead Ads',\n    rawData: fbData,\n    firstName: fbData.field_data?.find(f => f.name === 'first_name')?.values[0] || '',\n    lastName: fbData.field_data?.find(f => f.name === 'last_name')?.values[0] || '',\n    fullName: '',\n    phone: fbData.field_data?.find(f => f.name === 'phone_number')?.values[0] || '',\n    email: fbData.field_data?.find(f => f.name === 'email')?.values[0] || '',\n    serviceType: fbData.field_data?.find(f => f.name === 'service_interest')?.values[0] || 'General Inquiry',\n    address: fbData.field_data?.find(f => f.name === 'city')?.values[0] || '',\n    message: fbData.field_data?.find(f => f.name === 'message')?.values[0] || '',\n    budget: 'Not mentioned',\n    urgency: 'Not mentioned',\n    timestamp: new Date().toISOString()\n  };\n  normalized.fullName = `${normalized.firstName} ${normalized.lastName}`.trim();\n  normalized.phone = normalized.phone.replace(/[^0-9+]/g, '');\n  items.push({ json: normalized });\n}\nreturn items;"
+      },
+      "id": "b0c7ddea-7b32-4cde-b312-50d603cd6e84",
+      "name": "Parse Facebook Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const phoneData = item.json;\n  const normalized = {\n    source: 'Phone Call - Manual Entry',\n    rawData: phoneData,\n    firstName: phoneData.firstName || '',\n    lastName: phoneData.lastName || '',\n    fullName: `${phoneData.firstName || ''} ${phoneData.lastName || ''}`.trim(),\n    phone: phoneData.phone || '',\n    email: phoneData.email || '',\n    serviceType: phoneData.serviceType || 'General Inquiry',\n    address: phoneData.address || '',\n    message: phoneData.message || phoneData.notes || '',\n    budget: phoneData.budget || 'Not mentioned',\n    urgency: phoneData.urgency || 'Not mentioned',\n    timestamp: new Date().toISOString()\n  };\n  normalized.phone = normalized.phone.replace(/[^0-9+]/g, '');\n  items.push({ json: normalized });\n}\nreturn items;"
+      },
+      "id": "e0b0e7ed-cd8a-4830-9347-2603d275f386",
+      "name": "Parse Phone Call Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        48
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByFields": {
+          "values": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "ff0f9acc-9982-41da-afaf-9e73e3bce898",
+      "name": "Merge All Lead Sources",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        224,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const lead = item.json;\n  let scores = { serviceType: 5, location: 5, budget: 5, urgency: 5 };\n  const serviceType = (lead.serviceType || '').toLowerCase();\n  if (serviceType.includes('ac installation') || serviceType.includes('installation')) { scores.serviceType = 9; }\n  else if (serviceType.includes('hvac repair') || serviceType.includes('repair')) { scores.serviceType = 8; }\n  else if (serviceType.includes('home inspection') || serviceType.includes('inspection')) { scores.serviceType = 7; }\n  else if (serviceType.includes('maintenance')) { scores.serviceType = 7; }\n  else if (serviceType.includes('tune-up') || serviceType.includes('tuneup')) { scores.serviceType = 6; }\n  else { scores.serviceType = 6; }\n  const address = (lead.address || '').toLowerCase();\n  if (address.includes('san diego') && !address.includes('county')) { scores.location = 10; }\n  else if (address.includes('san diego county') || address.includes('chula vista') || address.includes('la mesa') || address.includes('el cajon') || address.includes('oceanside') || address.includes('carlsbad')) { scores.location = 8; }\n  else if (address.includes('california') || address.includes('ca')) { scores.location = 6; }\n  else if (address) { scores.location = 5; }\n  const budget = (lead.budget || '').toLowerCase();\n  if (budget.includes('5000') || budget.includes('5,000') || budget.includes('$5k') || budget.includes('premium') || budget.includes('10000') || budget.includes('10,000')) { scores.budget = 10; }\n  else if (budget.includes('3000') || budget.includes('3,000') || budget.includes('4000') || budget.includes('4,000') || budget.includes('mid') || budget.includes('moderate')) { scores.budget = 8; }\n  else if (budget.includes('1000') || budget.includes('1,000') || budget.includes('2000') || budget.includes('2,000') || budget.includes('basic') || budget.includes('affordable')) { scores.budget = 6; }\n  else { scores.budget = 5; }\n  const urgency = (lead.urgency || '').toLowerCase();\n  const message = (lead.message || '').toLowerCase();\n  if (urgency.includes('emergency') || urgency.includes('urgent') || urgency.includes('asap') || message.includes('emergency') || message.includes('urgent') || message.includes('asap')) { scores.urgency = 10; }\n  else if (urgency.includes('this week') || urgency.includes('soon') || urgency.includes('today') || message.includes('this week') || message.includes('today')) { scores.urgency = 8; }\n  else if (urgency.includes('this month') || urgency.includes('within 30 days') || message.includes('this month')) { scores.urgency = 6; }\n  else if (urgency.includes('flexible') || urgency.includes('not urgent')) { scores.urgency = 4; }\n  else { scores.urgency = 5; }\n  const finalScore = Math.round((scores.serviceType + scores.location + scores.budget + scores.urgency) / 4);\n  let leadTier = '';\n  if (finalScore >= 8) { leadTier = 'Hot Lead'; }\n  else if (finalScore >= 6) { leadTier = 'Warm Lead'; }\n  else { leadTier = 'Cold Lead'; }\n  const enrichedLead = { ...lead, leadScore: finalScore, leadTier: leadTier, scoreBreakdown: scores, scoredAt: new Date().toISOString() };\n  items.push({ json: enrichedLead });\n}\nreturn items;"
+      },
+      "id": "bc591e7a-021b-40bc-b729-d2172fa5ddb1",
+      "name": "Calculate Lead Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "list": "YOUR_CLICKUP_LIST_ID",
+        "name": "={{ $json.fullName }} - {{ $json.serviceType }}",
+        "additionalFields": {}
+      },
+      "id": "85c31f99-62f4-46bf-87a4-cc72863e067a",
+      "name": "Create ClickUp Task",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [
+        928,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.leadScore }}",
+              "rightValue": 7,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "5ef69907-cb2d-4524-be8b-def603937da7",
+      "name": "Check If Hot Lead",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1104,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const lead = item.json;\n  items.push({ json: { to: lead.email, subject: `Thank You for Contacting Prime Air Solutions - ${lead.serviceType}`, body: `Dear ${lead.firstName},\\n\\nThank you for reaching out! We received your inquiry about ${lead.serviceType.toLowerCase()}.\\n\\nOur expert team will contact you within 24 hours.\\n\\nBest regards,\\nPrime Air Solutions Team`, leadData: lead }});\n}\nreturn items;"
+      },
+      "id": "d70e1240-54b6-4b1e-8f32-d2587a4098a2",
+      "name": "Prepare Hot Lead Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        80
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "b1d80e85-df4f-4fcc-ab96-10380f20ab65",
+      "name": "Send Hot Lead Email",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1520,
+        80
+      ],
+      "webhookId": "8eb6edf9-07a5-4084-ac64-d83424b5d648",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ftMJ19DZtqaMtMKR",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "days"
+      },
+      "id": "284b8d9c-44b5-412a-828b-98642ffaeaad",
+      "name": "Wait 3 Days",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1712,
+        512
+      ],
+      "webhookId": "follow-up-wait"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const lead = item.json;\n  items.push({ json: { to: lead.email, subject: `Following Up - ${lead.serviceType} Service`, body: `Hi ${lead.firstName},\\n\\nFollowing up on your inquiry about ${lead.serviceType.toLowerCase()}.\\n\\nWould you like to schedule a consultation?\\n\\nBest regards,\\nPrime Air Solutions Team`, leadData: lead }});\n}\nreturn items;"
+      },
+      "id": "7f2ae719-e5ea-415e-91d7-226edbcd9f08",
+      "name": "Prepare Follow-Up Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1920,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "id": "c",
+        "updateFields": {
+          "status": "Email Pending Approval"
+        }
+      },
+      "id": "5558bfc1-99cc-44c6-96b2-fc1b4281fdae",
+      "name": "Update ClickUp - Approval Required",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [
+        2144,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "list": "YOUR_CLICKUP_JOBS_LIST_ID",
+        "name": "=JOB: {{ $json.fullName }} - {{ $json.serviceType }}",
+        "additionalFields": {}
+      },
+      "id": "8618c09b-754e-4b28-9e69-2c4304ef6ff7",
+      "name": "Create Job in ClickUp",
+      "type": "n8n-nodes-base.clickUp",
+      "typeVersion": 1,
+      "position": [
+        1328,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const lead = item.json;\n  const apt = new Date();\n  apt.setDate(apt.getDate() + 2);\n  apt.setHours(10, 0, 0, 0);\n  const end = new Date(apt);\n  end.setHours(12, 0, 0, 0);\n  items.push({ json: { summary: `${lead.serviceType} - ${lead.fullName}`, description: `Customer: ${lead.fullName}\\nPhone: ${lead.phone}\\nEmail: ${lead.email}`, location: lead.address, start: apt.toISOString(), end: end.toISOString(), attendees: lead.email, leadData: lead }});\n}\nreturn items;"
+      },
+      "id": "de73e159-6634-45bd-b8f6-22a3c78e1c5f",
+      "name": "Prepare Calendar Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "calendar",
+        "calendar": {
+          "__rl": true,
+          "value": "aifirstlink@gmail.com",
+          "mode": "list",
+          "cachedResultName": "aifirstlink@gmail.com"
+        },
+        "timeMin": "2025-11-04T00:00:00",
+        "timeMax": "2025-11-15T04:13:20",
+        "options": {}
+      },
+      "id": "5b4afc7c-2057-446f-bf9b-ef3c424d9016",
+      "name": "Create Google Calendar Event",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [
+        1760,
+        304
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "4fUHwW2iNUIwwKP2",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.leadData.email }}",
+        "subject": "Appointment Scheduled - Prime Air Solutions",
+        "message": "=Dear {{ $json.leadData.firstName }},\\n\\nYour appointment is scheduled!\\n\\nDate: 2 days from now\\nTime: 10:00 AM - 12:00 PM\\n\\nBest regards,\\nPrime Air Solutions Team",
+        "options": {}
+      },
+      "id": "bb9e786d-d4fe-44ff-aa8c-82a9433ff34a",
+      "name": "Send Appointment Confirmation",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1968,
+        304
+      ],
+      "webhookId": "05cf0b38-c24a-4b10-babe-add051b8e61b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ftMJ19DZtqaMtMKR",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = [];\nfor (const item of $input.all()) {\n  const lead = item.json;\n  items.push({ json: { to: lead.email, subject: `Thank You - Prime Air Solutions`, body: `Hello ${lead.firstName},\\n\\nThank you for your inquiry!\\n\\nWe'll get back to you within 2-3 business days.\\n\\nBest regards,\\nPrime Air Solutions Team`, leadData: lead }});\n}\nreturn items;"
+      },
+      "id": "c6971e4b-81a5-4bcf-8a45-d21d2f7f751a",
+      "name": "Prepare Initial Email - Warm/Cold",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1328,
+        512
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "={{ $json.to }}",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.body }}",
+        "options": {}
+      },
+      "id": "1b27fb13-0880-4c99-8734-1a287b5a0711",
+      "name": "Send Initial Email - Warm/Cold",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1520,
+        512
+      ],
+      "webhookId": "bcd19e67-afe3-4d8b-9f33-79873646c6ff",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "ftMJ19DZtqaMtMKR",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "Webhook received successfully!",
+        "options": {}
+      },
+      "id": "417c1acd-2e07-43fa-bae8-2dc1d7af8374",
+      "name": "Typeform Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        -112,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByFields": {
+          "values": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "1b7c5fa0-4f9a-4a81-80e5-107be0b892a3",
+      "name": "Merge All Lead Sources1",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        192,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByFields": {
+          "values": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "id": "649a7977-05d0-4f58-b39c-6392712bfe76",
+      "name": "Merge All Lead Sources2",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        544,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "content": "# Trigger and Data Fetching",
+        "height": 912,
+        "width": 832,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -384,
+        -80
+      ],
+      "typeVersion": 1,
+      "id": "7d2a4a15-2103-412b-8b8a-23e9dfd87c5b",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "# Lead Scoring & Routing",
+        "height": 256,
+        "width": 752,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        480,
+        240
+      ],
+      "typeVersion": 1,
+      "id": "c8ca0982-5a81-4896-950e-9c5d6e6000c4",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "# 📊 CRM integraton & Lead Path(Cold/Hot)",
+        "height": 912,
+        "width": 1040,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1280,
+        -80
+      ],
+      "typeVersion": 1,
+      "id": "6976e159-568d-49a7-bef1-174b6cb0266c",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "# 📥 LEAD SOURCE TRIGGERS\n## - Typeform (landing page form)\n## - Clay Polling\n## - Facebook Lead Ads\n## - Manual (Call-in)",
+        "height": 256,
+        "width": 528
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -384,
+        -592
+      ],
+      "typeVersion": 1,
+      "id": "b7029803-1444-4e13-9845-5c7d060441df",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "# 🎯 LEAD SCORING\n## - Service Type (landing page form)\n## - Location\n## - Budget\n## - Urgency\n** Final Score = Average of 4 factors\n## Lead Tiers:\n🔥 Hot Lead: 8-10\n🌡️ Warm Lead: 6-7\n❄️ Cold Lead: 1-5",
+        "height": 432,
+        "width": 480
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        160,
+        -592
+      ],
+      "typeVersion": 1,
+      "id": "faa2831c-3a0b-4306-a877-52761f51e15d",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "# 🔀 Routing Logic\nDecision Point: Lead Score > 7\n\n## TRUE → Hot Lead Path\n✅ Immediate email response\n✅ Create ClickUp job\n✅ Schedule Google Calendar appointment (2 days out, 10 AM-12 PM)\n✅ Send appointment confirmation​\n\n## FALSE → Warm/Cold Lead Path\n✅ Send initial acknowledgment email\n✅ Wait 3 days\n✅ Draft follow-up email\n✅ Update ClickUp task → \"Email Pending Approval\"\n✅ Requires manual approval before sending",
+        "height": 432,
+        "width": 512
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        656,
+        -592
+      ],
+      "typeVersion": 1,
+      "id": "79af5ab4-88d5-4021-93d8-d43739494556",
+      "name": "Sticky Note5"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger - Phone Leads": {
+      "main": [
+        [
+          {
+            "node": "Parse Phone Call Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Typeform Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Typeform Data",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Typeform Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clay API Polling": {
+      "main": [
+        [
+          {
+            "node": "Fetch Clay Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Facebook Ads Polling": {
+      "main": [
+        [
+          {
+            "node": "Fetch Facebook Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Clay Leads": {
+      "main": [
+        [
+          {
+            "node": "Parse Clay Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Facebook Leads": {
+      "main": [
+        [
+          {
+            "node": "Parse Facebook Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Typeform Data": {
+      "main": [
+        [
+          {
+            "node": "Merge All Lead Sources",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Clay Data": {
+      "main": [
+        [
+          {
+            "node": "Merge All Lead Sources",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge All Lead Sources": {
+      "main": [
+        [
+          {
+            "node": "Merge All Lead Sources2",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Calculate Lead Score": {
+      "main": [
+        [
+          {
+            "node": "Create ClickUp Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create ClickUp Task": {
+      "main": [
+        [
+          {
+            "node": "Check If Hot Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Hot Lead": {
+      "main": [
+        [
+          {
+            "node": "Prepare Hot Lead Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create Job in ClickUp",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Prepare Initial Email - Warm/Cold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Hot Lead Email": {
+      "main": [
+        [
+          {
+            "node": "Send Hot Lead Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Initial Email - Warm/Cold": {
+      "main": [
+        [
+          {
+            "node": "Send Initial Email - Warm/Cold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Initial Email - Warm/Cold": {
+      "main": [
+        [
+          {
+            "node": "Wait 3 Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 3 Days": {
+      "main": [
+        [
+          {
+            "node": "Prepare Follow-Up Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Follow-Up Email": {
+      "main": [
+        [
+          {
+            "node": "Update ClickUp - Approval Required",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Job in ClickUp": {
+      "main": [
+        [
+          {
+            "node": "Prepare Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Create Google Calendar Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Google Calendar Event": {
+      "main": [
+        [
+          {
+            "node": "Send Appointment Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Phone Call Data": {
+      "main": [
+        [
+          {
+            "node": "Merge All Lead Sources1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Facebook Data": {
+      "main": [
+        [
+          {
+            "node": "Merge All Lead Sources1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge All Lead Sources2": {
+      "main": [
+        [
+          {
+            "node": "Calculate Lead Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge All Lead Sources1": {
+      "main": [
+        [
+          {
+            "node": "Merge All Lead Sources2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "6066e25d-a544-472f-97d9-b7e27f2ae916",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "563081422b97a9613202fc9e330444d764a4b838aee8c810ae24b64e312e87c7"
+  },
+  "id": "ePNpSGKwxxgRJOY4",
+  "tags": []
+}
